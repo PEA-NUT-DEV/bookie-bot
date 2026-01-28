@@ -32,28 +32,17 @@ bot.onMessage(async (handler, { message, channelId, isMentioned }) => {
     }
 })
 
-const app = new Hono()
-
-app.all('/webhook', async (c) => {
-    const url = new URL(c.req.url)
-    const body = await c.req.text()
-
-    if (!body || body.length === 0) {
-        console.log('Empty body - verification ping')
-        return c.json({ status: 'ok' }, 200)
-    }
-
-    console.log('Webhook received:', body)
-    try {
-        const data = JSON.parse(body)
-        console.log('Parsed data:', data)
-    } catch (e) {
-        console.log('Could not parse JSON')
-    }
-
-    return c.json({ success: true })
+// Create webhook handler separate from bot auth
+const webhookApp = new Hono()
+webhookApp.all('/webhook', async (c) => {
+    console.log('Webhook hit')
+    return c.json({ success: true }, 200)
 })
 
+// Combine webhook app with bot app
 const botApp = bot.start()
+const app = new Hono()
+app.route('/', webhookApp)
 app.route('/', botApp)
+
 export default app
