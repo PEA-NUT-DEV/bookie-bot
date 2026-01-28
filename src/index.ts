@@ -19,19 +19,21 @@ app.post('/webhook', async (c) => {
     })
     console.log('Headers:', JSON.stringify(headers, null, 2))
     
+    let data
     try {
-      const data = JSON.parse(body)
+      data = JSON.parse(body)
       console.log('Parsed data:', JSON.stringify(data, null, 2))
     } catch (e) {
-      console.log('Body is not JSON, raw text:', body)
+      console.log('Body is not JSON')
     }
     
     console.log('=== END WEBHOOK ===')
     
-    return c.json({ success: true })
+    // Return empty 200 OK response (what Towns expects)
+    return c.text('', 200)
   } catch (error: any) {
     console.error('Webhook error:', error.message)
-    return c.json({ error: error.message }, 500)
+    return c.text('', 500)
   }
 })
 
