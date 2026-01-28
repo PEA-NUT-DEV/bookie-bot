@@ -29,11 +29,11 @@ app.post('/webhook', async (c) => {
     
     console.log('=== END WEBHOOK ===')
     
-    // Return empty 200 OK response (what Towns expects)
-    return c.text('', 200)
+    // Return completely empty response
+    return new Response(null, { status: 200 })
   } catch (error: any) {
     console.error('Webhook error:', error.message)
-    return c.text('', 500)
+    return new Response(null, { status: 500 })
   }
 })
 
