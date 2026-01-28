@@ -16,39 +16,37 @@ app.get('/health', (c) => {
 })
 
 app.all('/webhook', async (c) => {
-  try {
-    console.log('=== WEBHOOK RECEIVED ===')
-    console.log('Method:', c.req.method)
-    
-    const signature = c.req.header('x-towns-signature')
-    console.log('Signature:', signature)
-    
-    const body = await c.req.text()
-    console.log('Body:', body || '(empty)')
-    
-    // Verify signature if present
-    if (signature && process.env.JWT_SECRET && body) {
-      const isValid = verifyWebhookSignature(body, signature, process.env.JWT_SECRET)
-      console.log('Signature valid:', isValid)
-    }
-    
-    if (body) {
-      try {
-        const data = JSON.parse(body)
-        console.log('Parsed:', JSON.stringify(data, null, 2))
-      } catch (e) {
-        console.log('Not JSON')
-      }
-    }
-    
-    console.log('=== END WEBHOOK ===')
-    
-    // Try returning a JSON response that might be what Towns expects
-    return c.json({ ok: true, status: 'received' })
-  } catch (error: any) {
-    console.error('Error:', error.message)
-    return c.json({ ok: false, error: error.message }, 500)
+  const url = new URL(c.req.url);
+  console.log('Full URL:', c.req.url);
+  console.log('Query params:', url.searchParams.toString());
+  
+  const body = await c.req.text();
+  
+  // If body is empty, this is a verification ping
+  if (!body || body.length === 0) {
+    console.log('Empty body - verification ping');
+    return new Response('', { 
+      status: 200,
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
   }
+  
+  // Handle actual webhook with data
+  console.log('Body:', body);
+  try {
+    const data = JSON.parse(body);
+    console.log('Parsed data:', data);
+    // Process webhook here
+  } catch (e) {
+    console.log('Could not parse JSON');
+  }
+
+  return new Response('', { 
+    status: 200,
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  });
 })
 
 app.get('/.well-known/agent-metadata.json', (c) => {
