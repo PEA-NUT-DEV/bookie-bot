@@ -1,4 +1,5 @@
 import { makeTownsBot } from '@towns-protocol/bot'
+import { Hono } from 'hono'
 import commands from './commands'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
@@ -31,5 +32,28 @@ bot.onMessage(async (handler, { message, channelId, isMentioned }) => {
     }
 })
 
-const app = bot.start()
+const app = new Hono()
+
+app.all('/webhook', async (c) => {
+    const url = new URL(c.req.url)
+    const body = await c.req.text()
+
+    if (!body || body.length === 0) {
+        console.log('Empty body - verification ping')
+        return c.json({ status: 'ok' }, 200)
+    }
+
+    console.log('Webhook received:', body)
+    try {
+        const data = JSON.parse(body)
+        console.log('Parsed data:', data)
+    } catch (e) {
+        console.log('Could not parse JSON')
+    }
+
+    return c.json({ success: true })
+})
+
+const botApp = bot.start()
+app.route('/', botApp)
 export default app
