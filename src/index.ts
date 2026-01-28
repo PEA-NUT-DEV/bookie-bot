@@ -15,17 +15,29 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', message: 'Bookie bot is running!' })
 })
 
-app.post('/webhook', async (c) => {
+// Log ALL requests to webhook endpoint
+app.all('/webhook', async (c) => {
   try {
-    const signature = c.req.header('x-towns-signature')
-    const body = await c.req.text()
-    
     console.log('=== WEBHOOK RECEIVED ===')
-    console.log('Signature:', signature)
-    console.log('Raw body:', body)
+    console.log('Method:', c.req.method)
+    console.log('URL:', c.req.url)
+    
+    const signature = c.req.header('x-towns-signature')
+    console.log('Signature header:', signature)
+    
+    // Log ALL headers
+    const allHeaders: Record<string, string> = {}
+    c.req.raw.headers.forEach((value, key) => {
+      allHeaders[key] = value
+    })
+    console.log('All headers:', JSON.stringify(allHeaders, null, 2))
+    
+    const body = await c.req.text()
+    console.log('Raw body length:', body.length)
+    console.log('Raw body:', body || '(empty)')
     
     // Verify signature if present
-    if (signature && process.env.JWT_SECRET) {
+    if (signature && process.env.JWT_SECRET && body) {
       const isValid = verifyWebhookSignature(body, signature, process.env.JWT_SECRET)
       console.log('Signature valid:', isValid)
       
@@ -35,12 +47,13 @@ app.post('/webhook', async (c) => {
       }
     }
     
-    let data
-    try {
-      data = JSON.parse(body)
-      console.log('Parsed data:', JSON.stringify(data, null, 2))
-    } catch (e) {
-      console.log('Body is not JSON')
+    if (body) {
+      try {
+        const data = JSON.parse(body)
+        console.log('Parsed data:', JSON.stringify(data, null, 2))
+      } catch (e) {
+        console.log('Body is not JSON')
+      }
     }
     
     console.log('=== END WEBHOOK ===')
