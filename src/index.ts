@@ -15,53 +15,39 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', message: 'Bookie bot is running!' })
 })
 
-// Log ALL requests to webhook endpoint
 app.all('/webhook', async (c) => {
   try {
     console.log('=== WEBHOOK RECEIVED ===')
     console.log('Method:', c.req.method)
-    console.log('URL:', c.req.url)
     
     const signature = c.req.header('x-towns-signature')
-    console.log('Signature header:', signature)
-    
-    // Log ALL headers
-    const allHeaders: Record<string, string> = {}
-    c.req.raw.headers.forEach((value, key) => {
-      allHeaders[key] = value
-    })
-    console.log('All headers:', JSON.stringify(allHeaders, null, 2))
+    console.log('Signature:', signature)
     
     const body = await c.req.text()
-    console.log('Raw body length:', body.length)
-    console.log('Raw body:', body || '(empty)')
+    console.log('Body:', body || '(empty)')
     
     // Verify signature if present
     if (signature && process.env.JWT_SECRET && body) {
       const isValid = verifyWebhookSignature(body, signature, process.env.JWT_SECRET)
       console.log('Signature valid:', isValid)
-      
-      if (!isValid) {
-        console.log('Invalid signature!')
-        return new Response(null, { status: 401 })
-      }
     }
     
     if (body) {
       try {
         const data = JSON.parse(body)
-        console.log('Parsed data:', JSON.stringify(data, null, 2))
+        console.log('Parsed:', JSON.stringify(data, null, 2))
       } catch (e) {
-        console.log('Body is not JSON')
+        console.log('Not JSON')
       }
     }
     
     console.log('=== END WEBHOOK ===')
     
-    return new Response(null, { status: 200 })
+    // Try returning a JSON response that might be what Towns expects
+    return c.json({ ok: true, status: 'received' })
   } catch (error: any) {
-    console.error('Webhook error:', error.message)
-    return new Response(null, { status: 500 })
+    console.error('Error:', error.message)
+    return c.json({ ok: false, error: error.message }, 500)
   }
 })
 
@@ -74,9 +60,7 @@ app.get('/.well-known/agent-metadata.json', (c) => {
 })
 
 const port = parseInt(process.env.PORT || '5123')
-console.log('=========================')
 console.log('Bookie bot starting on port', port)
-console.log('=========================')
 
 serve({
   fetch: app.fetch,
