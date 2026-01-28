@@ -25,10 +25,7 @@ app.all('/webhook', async (c) => {
   // If body is empty, this is a verification ping
   if (!body || body.length === 0) {
     console.log('Empty body - verification ping');
-    return new Response('', { 
-      status: 200,
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    });
+    return c.json({ status: 'ok' }, 200);
   }
   
   // Handle actual webhook with data
