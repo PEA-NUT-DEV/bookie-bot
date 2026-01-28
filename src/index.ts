@@ -1,63 +1,35 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { createHmac } from 'crypto'
+import { makeTownsBot } from '@towns-protocol/bot'
+import commands from './commands'
 
-const app = new Hono()
-
-function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-  const hmac = createHmac('sha256', secret)
-  hmac.update(body)
-  const expectedSignature = hmac.digest('hex')
-  return signature === expectedSignature
-}
-
-app.get('/health', (c) => {
-  return c.json({ status: 'ok', message: 'Bookie bot is running!' })
+const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
+    commands,
 })
 
-app.all('/webhook', async (c) => {
-  const url = new URL(c.req.url);
-  console.log('Full URL:', c.req.url);
-  console.log('Query params:', url.searchParams.toString());
-  
-  const body = await c.req.text();
-  
-  // If body is empty, this is a verification ping
-  if (!body || body.length === 0) {
-    console.log('Empty body - verification ping');
-    return c.json({ status: 'ok' }, 200);
-  }
-  
-  // Handle actual webhook with data
-  console.log('Body:', body);
-  try {
-    const data = JSON.parse(body);
-    console.log('Parsed data:', data);
-    // Process webhook here
-  } catch (e) {
-    console.log('Could not parse JSON');
-  }
+bot.onSlashCommand('help', async (handler, { channelId }) => {
+    await handler.sendMessage(
+        channelId,
+        '**Bookie Bot Commands:**\n\n' +
+            '• `/help` - Show this help message\n' +
+            '• `/odds` - Check current odds\n\n' +
+            '**Message Triggers:**\n\n' +
+            '• Say "bet" - Get betting info\n',
+    )
+})
 
-  return new Response('', { 
-    status: 200,
-    headers: {
-      'ngrok-skip-browser-warning': 'true'
+bot.onSlashCommand('odds', async (handler, { channelId }) => {
+    await handler.sendMessage(channelId, '📊 Odds feature coming soon!')
+})
+
+bot.onMessage(async (handler, { message, channelId, isMentioned }) => {
+    if (isMentioned) {
+        await handler.sendMessage(channelId, "Hey! I'm Bookie, your sports betting bot. Type `/help` to see what I can do!")
+        return
     }
-  });
+    if (message.toLowerCase().includes('bet')) {
+        await handler.sendMessage(channelId, '🎲 Ready to place a bet? Use `/odds` to check the latest lines!')
+        return
+    }
 })
 
-app.get('/.well-known/agent-metadata.json', (c) => {
-  return c.json({
-    name: 'Bookie',
-    description: 'Trustless on-chain sports betting bot',
-    version: '1.0.0'
-  })
-})
-
-const port = parseInt(process.env.PORT || '5123')
-console.log('Bookie bot starting on port', port)
-
-serve({
-  fetch: app.fetch,
-  port,
-})
+const app = bot.start()
+export default app
