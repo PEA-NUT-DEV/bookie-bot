@@ -3,20 +3,22 @@ import { Hono } from 'hono'
 
 const app = new Hono()
 
-// Health check endpoint
 app.get('/health', (c) => {
   return c.json({ status: 'ok', message: 'Bookie bot is running!' })
 })
 
-// Webhook endpoint - receives messages from Towns
 app.post('/webhook', async (c) => {
   try {
     const body = await c.req.text()
     console.log('=== WEBHOOK RECEIVED ===')
     console.log('Raw body:', body)
-    console.log('Headers:', JSON.stringify(Object.fromEntries(c.req.header()), null, 2))
     
-    // Try to parse as JSON
+    const headers: Record<string, string> = {}
+    c.req.raw.headers.forEach((value, key) => {
+      headers[key] = value
+    })
+    console.log('Headers:', JSON.stringify(headers, null, 2))
+    
     try {
       const data = JSON.parse(body)
       console.log('Parsed data:', JSON.stringify(data, null, 2))
@@ -33,7 +35,6 @@ app.post('/webhook', async (c) => {
   }
 })
 
-// Bot discovery endpoint
 app.get('/.well-known/agent-metadata.json', (c) => {
   return c.json({
     name: 'Bookie',
@@ -42,7 +43,6 @@ app.get('/.well-known/agent-metadata.json', (c) => {
   })
 })
 
-// Start the server
 const port = parseInt(process.env.PORT || '5123')
 console.log('=========================')
 console.log('Bookie bot starting on port', port)
