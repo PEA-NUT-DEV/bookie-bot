@@ -21,16 +21,28 @@ app.get('/health', (c) => {
 // Webhook endpoint - receives messages from Towns
 app.post('/webhook', async (c) => {
   try {
-    const body = await c.req.json()
-    console.log('Webhook received:', JSON.stringify(body, null, 2))
+    // Get the raw body first
+    const body = await c.req.text()
+    console.log('Raw webhook body:', body)
+    console.log('Headers:', JSON.stringify(c.req.header(), null, 2))
     
-    // Handle the webhook (we'll parse messages here)
-    await handleWebhook(body)
+    // Try to parse as JSON
+    let data
+    try {
+      data = JSON.parse(body)
+      console.log('Parsed webhook data:', JSON.stringify(data, null, 2))
+    } catch (e) {
+      console.log('Not JSON, raw text:', body)
+      return c.text('OK')
+    }
     
-    return c.text('OK')
+    // Handle the webhook
+    await handleWebhook(data)
+    
+    return c.json({ success: true })
   } catch (error) {
     console.error('Webhook error:', error)
-    return c.text('Error', 500)
+    return c.json({ error: 'Internal error' }, 500)
   }
 })
 
@@ -45,14 +57,14 @@ app.get('/.well-known/agent-metadata.json', async (c) => {
 
 // Webhook handler
 async function handleWebhook(data: any) {
-  // Log what we receive to understand the structure
-  console.log('Processing webhook data...')
+  console.log('Processing webhook...')
   
-  // TODO: Parse actual Towns webhook format
-  // For now, just log it so we can see what data comes in
+  // Log the structure so we can see what Towns sends
+  console.log('Event type:', data.type)
+  console.log('Event data:', JSON.stringify(data.data, null, 2))
 }
 
-// API endpoints for testing (you can call these directly)
+// API endpoints for testing
 app.post('/api/game', async (c) => {
   const { sport, homeTeam, awayTeam, startTime } = await c.req.json()
   const game = createGame(sport, homeTeam, awayTeam, new Date(startTime))
@@ -98,13 +110,6 @@ app.get('/api/user/:userId/bets', (c) => {
 // Start the server
 const port = parseInt(process.env.PORT || '5123')
 console.log('Bookie bot starting on port ' + port)
-console.log('Available endpoints:')
-console.log('  POST /api/game - Create a new game')
-console.log('  POST /api/bet - Create a bet')
-console.log('  POST /api/bet/:betId/accept - Accept a bet')
-console.log('  GET /api/bets/open - View open bets')
-console.log('  GET /api/games - View upcoming games')
-console.log('  GET /api/user/:userId/bets - View user bets')
 
 serve({
   fetch: app.fetch,
