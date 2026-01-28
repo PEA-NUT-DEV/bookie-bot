@@ -1,7 +1,15 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { createHmac } from 'crypto'
 
 const app = new Hono()
+
+function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
+  const hmac = createHmac('sha256', secret)
+  hmac.update(body)
+  const expectedSignature = hmac.digest('hex')
+  return signature === expectedSignature
+}
 
 app.get('/health', (c) => {
   return c.json({ status: 'ok', message: 'Bookie bot is running!' })
@@ -9,15 +17,23 @@ app.get('/health', (c) => {
 
 app.post('/webhook', async (c) => {
   try {
+    const signature = c.req.header('x-towns-signature')
     const body = await c.req.text()
+    
     console.log('=== WEBHOOK RECEIVED ===')
+    console.log('Signature:', signature)
     console.log('Raw body:', body)
     
-    const headers: Record<string, string> = {}
-    c.req.raw.headers.forEach((value, key) => {
-      headers[key] = value
-    })
-    console.log('Headers:', JSON.stringify(headers, null, 2))
+    // Verify signature if present
+    if (signature && process.env.JWT_SECRET) {
+      const isValid = verifyWebhookSignature(body, signature, process.env.JWT_SECRET)
+      console.log('Signature valid:', isValid)
+      
+      if (!isValid) {
+        console.log('Invalid signature!')
+        return new Response(null, { status: 401 })
+      }
+    }
     
     let data
     try {
@@ -29,7 +45,6 @@ app.post('/webhook', async (c) => {
     
     console.log('=== END WEBHOOK ===')
     
-    // Return completely empty response
     return new Response(null, { status: 200 })
   } catch (error: any) {
     console.error('Webhook error:', error.message)
